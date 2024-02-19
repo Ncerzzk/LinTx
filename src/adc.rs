@@ -7,7 +7,7 @@ use nb::block;
 
 use ads1x1x::{channel, Ads1x1x, SlaveAddr};
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,Default)]
 pub struct AdcRawMsg{
     pub value:[i16;4]
 }
