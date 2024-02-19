@@ -9,7 +9,7 @@ use ads1x1x::{channel, Ads1x1x, SlaveAddr};
 
 #[derive(Debug,Clone,Copy)]
 pub struct AdcRawMsg{
-    value:[i16;4]
+    pub value:[i16;4]
 }
 
 fn adc_main(argc: u32, argv: *const &str) {
