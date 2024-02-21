@@ -1,8 +1,8 @@
-use std::{iter::zip, time::Duration, io::Write};
+use std::{time::Duration, io::Write};
 
 use rpos::{
-    channel::{Channel, Receiver},
-    thread_logln, thread_log,
+    channel::Receiver,
+    thread_logln
 };
 
 use crate::adc::AdcRawMsg;
@@ -14,7 +14,7 @@ where
     const ITER: &'static [Self];
 }
 
-enum JoystickChannel {
+pub enum JoystickChannel {
     Thrust,
     Direction,
     Aileron,
@@ -22,23 +22,23 @@ enum JoystickChannel {
 }
 
 impl JoystickChannel {
-    const ITER: &'static [Self] = &[Self::Thrust, Self::Direction, Self::Aileron, Self::Elevator];
-    const STRS: &'static [&'static str] = &["Thrust", "Direction", "Aileron", "Elevator"];
+    pub const ITER: &'static [Self] = &[Self::Thrust, Self::Direction, Self::Aileron, Self::Elevator];
+    pub const STRS: &'static [&'static str] = &["Thrust", "Direction", "Aileron", "Elevator"];
 }
 
-#[derive(Default,Clone, Copy,Debug,serde::Serialize)]
+#[derive(Default,Clone,Debug,serde::Serialize,serde::Deserialize)]
 struct ChannelInfo {
-    name:&'static str,
-    index: u8,
-    min: i16,
-    max: i16,
-    rev: bool,
+    pub name: String,
+    pub index: u8,
+    pub min: i16,
+    pub max: i16,
+    pub rev: bool,
 }
 
-#[derive(serde::Serialize)]
-struct CalibrationData{
-    channel_infos:Vec<ChannelInfo>,
-    channel_indexs:Vec<u8>
+#[derive(serde::Serialize,serde::Deserialize)]
+pub struct CalibrationData{
+    pub channel_infos:Vec<ChannelInfo>,
+    pub channel_indexs:Vec<u8>
 }
 
 enum CalibrateState {
@@ -109,7 +109,7 @@ impl Calibration {
                         min,
                         max,
                         rev:false,
-                        name:JoystickChannel::STRS[index]
+                        name:JoystickChannel::STRS[index].to_string(),
                     };
                     self.data.channel_infos.push(chn);
                 }
