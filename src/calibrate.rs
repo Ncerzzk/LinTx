@@ -1,8 +1,8 @@
-use std::{iter::zip, time::Duration};
+use std::{iter::zip, time::Duration, io::Write};
 
 use rpos::{
     channel::{Channel, Receiver},
-    thread_logln,
+    thread_logln, thread_log,
 };
 
 use crate::adc::AdcRawMsg;
@@ -26,40 +26,47 @@ impl JoystickChannel {
     const STRS: &'static [&'static str] = &["Thrust", "Direction", "Aileron", "Elevator"];
 }
 
-#[derive(Default,Clone, Copy)]
+#[derive(Default,Clone, Copy,Debug,serde::Serialize)]
 struct ChannelInfo {
+    name:&'static str,
     index: u8,
-    min: u16,
-    max: u16,
+    min: i16,
+    max: i16,
     rev: bool,
+}
+
+#[derive(serde::Serialize)]
+struct CalibrationData{
+    channel_infos:Vec<ChannelInfo>,
+    channel_indexs:Vec<u8>
 }
 
 enum CalibrateState {
     Idle,
     LowestCheck(u8),
-    MinMaxCheck(u8),
+    MinMaxCheck,
+    Finish
 }
 struct Calibration {
     state: CalibrateState,
-    channel_infos: Vec<ChannelInfo>,
-    joystick_channel_num: u8,
+    data:CalibrationData,
     rx: Receiver<AdcRawMsg>,
-    channel_indexs:Vec<u8>
 }
 
 impl Calibration {
     fn new() -> Self {
         Calibration {
             state: CalibrateState::Idle,
-            channel_infos: [ChannelInfo::default();JoystickChannel::ITER.len()].to_vec(),
-            joystick_channel_num: JoystickChannel::ITER.len() as u8,
             rx: rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap(),
-            channel_indexs:Vec::new()
+            data: CalibrationData{
+                channel_infos: Vec::new(),
+                channel_indexs:Vec::new()
+            }
         }
     }
 
     fn do_sample(&mut self,prewait_seconds:u32,sample_seconds:u32) -> CalSample {
-        let mut sample = CalSample::new(&mut self.rx);
+        let mut sample = CalSample::new(self.rx.clone());
         std::thread::sleep(Duration::from_secs(prewait_seconds as u64));
         sample.sample_in_seconds(sample_seconds);
         sample
@@ -71,38 +78,60 @@ impl Calibration {
                 thread_logln!("start calibrate joysticks!");
                 thread_logln!("step 0:push joysticks to center.");
                 std::thread::sleep(std::time::Duration::from_secs(5));
-                thread_logln!("done.");
                 self.state = CalibrateState::LowestCheck(0);
             }
             CalibrateState::LowestCheck(x) => {
                 thread_logln!(
-                    "push channel:{} to lowest side or leftmost side",
+                    "step {}:push channel:{} to lowest side or leftmost side", x+1,
                     JoystickChannel::STRS[x as usize]
                 );
 
-                let sample = self.do_sample(0,5);
+                let sample = self.do_sample(2,3);
                 let chn = sample.find_largest_change_channel();
-                self.channel_indexs.push(chn);
+                self.data.channel_indexs.push(chn);
 
                 let next_channel = x + 1;
-                if next_channel == self.joystick_channel_num {
-                    self.state = CalibrateState::MinMaxCheck(0);
+                if next_channel == JoystickChannel::ITER.len() as u8 {
+                    self.state = CalibrateState::MinMaxCheck;
                 } else {
-                    self.state = CalibrateState::LowestCheck(x + 1);
+                    self.state = CalibrateState::LowestCheck(next_channel);
                 }
             }
-            CalibrateState::MinMaxCheck(_) => todo!(),
+            CalibrateState::MinMaxCheck =>{
+                thread_logln!("last step: rotate all your joysticks to check min and max value.");
+                let sample = self.do_sample(0, 10);
+                for (index,_) in JoystickChannel::ITER.iter().enumerate(){
+                    let channel_index = self.data.channel_indexs[index];
+                    let min = sample.get_min_of_channel(channel_index);
+                    let max = sample.get_max_of_channel(channel_index);
+                    let chn = ChannelInfo{
+                        index: channel_index,
+                        min,
+                        max,
+                        rev:false,
+                        name:JoystickChannel::STRS[index]
+                    };
+                    self.data.channel_infos.push(chn);
+                }
+                self.state = CalibrateState::Finish;
+            },
+            CalibrateState::Finish =>{
+                thread_logln!("finished.");
+                for (index,channel_name) in JoystickChannel::STRS.iter().enumerate(){
+                    thread_logln!("{}:{:?}",channel_name,self.data.channel_infos[index]);
+                }
+            }
         }
     }
 }
 
-struct CalSample<'a> {
+struct CalSample{
     list: Vec<AdcRawMsg>,
-    rx: &'a mut Receiver<AdcRawMsg>,
+    rx: Receiver<AdcRawMsg>,
 }
 
-impl<'a> CalSample<'a> {
-    fn new(rx: &'a mut Receiver<AdcRawMsg>) -> Self {
+impl CalSample {
+    fn new(rx:Receiver<AdcRawMsg>) -> Self {
         CalSample {
             list: Vec::new(),
             rx,
@@ -182,7 +211,21 @@ impl<'a> CalSample<'a> {
     }
 }
 
-fn calibrate_main(argc: u32, argv: *const &str) {}
+fn calibrate_main(argc: u32, argv: *const &str) {
+    let mut cal = Calibration::new();
+    loop{
+        match cal.state{
+            CalibrateState::Finish => {
+                cal.do_step();
+                break
+            },
+            _ => cal.do_step()
+        }
+    }
+    let mut file = std::fs::OpenOptions::new().read(false).write(true).create_new(true).open("joystick.toml").unwrap();
+    let str_write = toml::to_string(&cal.data).unwrap();
+    file.write(str_write.as_bytes()).unwrap();
+}
 
 #[rpos::ctor::ctor]
 fn register() {
@@ -191,14 +234,30 @@ fn register() {
 
 #[cfg(test)]
 mod tests {
-    use core::panic;
-
     use super::*;
+    use serde::Serialize;
+    #[derive(Serialize)]
+    struct SaveInfo{
+        a:Vec<u8>,
+        b:Vec<u8>
+    }
 
+    #[test]
+    fn test_save_cal_data(){
+        let mut a = CalibrationData{
+            channel_indexs:[0,1,2,3].to_vec(),
+            channel_infos:Vec::new()
+        };
+        a.channel_infos.push(ChannelInfo::default());
+        a.channel_infos.push(ChannelInfo::default());
+
+        let b = toml::to_string(&a).unwrap();
+        thread_logln!("{}",b);
+    }
     #[test]
     fn test_calsample_average() {
         let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-        let mut sample = CalSample::new(&mut rx);
+        let mut sample = CalSample::new(rx.clone());
         sample.list.push(AdcRawMsg { value: [100; 4] });
         sample.list.push(AdcRawMsg { value: [200; 4] });
 
@@ -212,7 +271,7 @@ mod tests {
     #[test]
     fn test_calsample_find_largest_changes_channel(){
         let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-        let mut sample = CalSample::new(&mut rx);
+        let mut sample = CalSample::new(rx.clone());
         sample.list.push(AdcRawMsg { value: [101,99,103,102] });
         sample.list.push(AdcRawMsg { value: [295,290,301,299] });
 
@@ -222,7 +281,7 @@ mod tests {
     #[test]
     fn test_calsample_get_min_max(){
         let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-        let mut sample = CalSample::new(&mut rx);
+    let mut sample = CalSample::new(rx.clone());
         const CHANNEL_NUM: usize = JoystickChannel::ITER.len();
         sample.list.push(AdcRawMsg { value: [50;CHANNEL_NUM] });
         sample.list.push(AdcRawMsg { value: [100;CHANNEL_NUM] });
@@ -236,5 +295,29 @@ mod tests {
             assert_eq!(sample.get_max_of_channel(i as u8),500);
         }
         
+    }
+
+    #[test]
+    fn test_calibrate(){
+        let mut cal = Calibration::new();
+        std::thread::spawn(||{
+            let tx = rpos::msg::get_new_tx_of_message::<AdcRawMsg>("adc_raw").unwrap();
+            
+            loop{
+                let msg = AdcRawMsg::default();
+                tx.send(msg);
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+        });
+
+        loop{
+            match cal.state{
+                CalibrateState::Finish => {
+                    cal.do_step();
+                    break
+                },
+                _ => cal.do_step()
+            }
+        }
     }
 }
