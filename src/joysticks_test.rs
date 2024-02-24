@@ -3,10 +3,10 @@ use rpos::{thread_log, msg::get_new_rx_of_message};
 use crate::mixer::MixerOutMsg;
 
 fn channel_out(mixout:&MixerOutMsg){
-    thread_log!("Thrust:{}\n",mixout.thrust);
-    thread_log!("direction:{}\n",mixout.direction);
-    thread_log!("aileron:{}\n",mixout.aileron);
-    thread_log!("elevator:{}\n",mixout.elevator);
+    thread_log!("\x1b[2KThrust:{}\n",mixout.thrust);
+    thread_log!("\x1b[2Kdirection:{}\n",mixout.direction);
+    thread_log!("\x1b[2Kaileron:{}\n",mixout.aileron);
+    thread_log!("\x1b[2Kelevator:{}\n",mixout.elevator);
     thread_log!("\x1b[4A");
     
 }
