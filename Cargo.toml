@@ -17,3 +17,6 @@ serde ={ version = "1.0.197", features = ["derive"] }
 
 [dev-dependencies]
 rand = "0.8.4"
+
+[build-dependencies]
+build-data = "0"
