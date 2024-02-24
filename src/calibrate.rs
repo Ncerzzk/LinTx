@@ -5,7 +5,7 @@ use rpos::{
     thread_logln
 };
 
-use crate::adc::AdcRawMsg;
+use crate::{adc::AdcRawMsg, CALIBRATE_FILENAME};
 
 pub trait EnumIter
 where
@@ -27,7 +27,7 @@ impl JoystickChannel {
 }
 
 #[derive(Default,Clone,Debug,serde::Serialize,serde::Deserialize)]
-struct ChannelInfo {
+pub struct ChannelInfo {
     pub name: String,
     pub index: u8,
     pub min: i16,
@@ -222,7 +222,7 @@ fn calibrate_main(argc: u32, argv: *const &str) {
             _ => cal.do_step()
         }
     }
-    let mut file = std::fs::OpenOptions::new().read(false).write(true).create_new(true).open("joystick.toml").unwrap();
+    let mut file = std::fs::OpenOptions::new().read(false).write(true).create_new(true).open(CALIBRATE_FILENAME).unwrap();
     let str_write = toml::to_string(&cal.data).unwrap();
     file.write(str_write.as_bytes()).unwrap();
 }

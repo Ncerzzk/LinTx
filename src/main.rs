@@ -5,6 +5,9 @@ use rpos::{
 mod adc;
 mod calibrate;
 mod mixer;
+mod joysticks_test;
+
+pub const CALIBRATE_FILENAME: &str = "joystick.toml";
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None, arg_required_else_help(true))]
