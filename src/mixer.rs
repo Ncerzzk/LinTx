@@ -33,7 +33,7 @@ fn cal_mixout(channel: JoystickChannel, raw: &AdcRawMsg, cal_data: &CalibrationD
     ret as u16
 }
 
-fn mixer_main(argc: u32, argv: *const &str) {
+fn mixer_main(_argc: u32, _argv: *const &str) {
     let rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
     let tx = rpos::msg::get_new_tx_of_message::<MixerOutMsg>("mixer_out").unwrap();
     let mut toml_str = String::new();

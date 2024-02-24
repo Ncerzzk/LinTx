@@ -211,7 +211,7 @@ impl CalSample {
     }
 }
 
-fn calibrate_main(argc: u32, argv: *const &str) {
+fn calibrate_main(_argc: u32, _argv: *const &str) {
     let mut cal = Calibration::new();
     loop{
         match cal.state{

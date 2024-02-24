@@ -10,7 +10,7 @@ fn channel_out(mixout:&MixerOutMsg){
     thread_log!("\x1b[4A");
     
 }
-fn joysticks_test_main(argc: u32, argv: *const &str) {
+fn joysticks_test_main(_argc: u32, _argv: *const &str) {
     let mut rx = get_new_rx_of_message::<MixerOutMsg>("mixer_out").unwrap();
     loop{
         channel_out(&rx.read());

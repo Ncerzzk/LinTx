@@ -1,6 +1,6 @@
-use clap::Command;
+
 use rpos::thread_logln;
-use std::{sync::{Arc, RwLock}, fs::File, io::Write};
+use std::{io::Write};
 
 use linux_embedded_hal::I2cdev;
 use nb::block;
@@ -12,7 +12,7 @@ pub struct AdcRawMsg{
     pub value:[i16;4]
 }
 
-fn adc_main(argc: u32, argv: *const &str) {
+fn adc_main(_argc: u32, _argv: *const &str) {
     let dev = I2cdev::new("/dev/i2c-0").unwrap();
     let address = SlaveAddr::default();
     let mut adc = Ads1x1x::new_ads1015(dev, address);
@@ -34,6 +34,7 @@ fn adc_main(argc: u32, argv: *const &str) {
         adc_raw_tx.send(AdcRawMsg{ value });
     }
     // get I2C device back
+    #[warn(unreachable_code)]
     let _dev = adc.destroy_ads1015();
 }
 
