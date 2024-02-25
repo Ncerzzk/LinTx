@@ -6,6 +6,7 @@ mod adc;
 mod calibrate;
 mod mixer;
 mod joysticks_test;
+mod gampad;
 
 pub const CALIBRATE_FILENAME: &str = "joystick.toml";
 
@@ -33,7 +34,7 @@ fn main() {
     /_____/_/_/ /_/_/ /_/|_|  ";
 
         println!("{hello_txt}");
-        
+
         println!("Built from branch={} commit={} dirty={} source_timestamp={}",
             env!("GIT_BRANCH"),
             env!("GIT_COMMIT"),
