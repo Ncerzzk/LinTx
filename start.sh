@@ -1,0 +1,3 @@
+
+./LinTx -- adc &
+./LinTx -- mixer &
