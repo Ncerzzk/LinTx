@@ -10,7 +10,7 @@ use crate::calibrate::{
 use crate::CALIBRATE_FILENAME;
 
 #[derive(Clone)]
-pub struct MixerOutMsg {
+pub struct MixerOutMsg{
     pub thrust: u16,
     pub direction: u16,
     pub aileron: u16,

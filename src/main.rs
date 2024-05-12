@@ -5,8 +5,11 @@ use rpos::{
 mod adc;
 mod calibrate;
 mod mixer;
+mod elrs_tx;
+mod joy_dev;
 mod joysticks_test;
 mod gampad;
+
 
 pub const CALIBRATE_FILENAME: &str = "joystick.toml";
 
@@ -19,6 +22,23 @@ struct Cli {
     /// commands send by clients.
     #[arg(value_name = "client commands")]
     other: Option<Vec<String>>,
+}
+
+pub fn client_process_args<T:clap::Parser>(
+    argc: u32,
+    argv: *const &str
+) -> Option<T> {
+
+    let argv = unsafe { std::slice::from_raw_parts(argv, argc as usize) };
+
+    let ret = T::try_parse_from(argv);
+
+    if ret.is_err() {
+        let help_str = T::command().render_help();
+        rpos::thread_logln!("{}", help_str);
+        return None
+    }
+    ret.ok()
 }
 
 fn main() {
