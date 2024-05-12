@@ -21,10 +21,10 @@ fn cal_mixout(channel: JoystickChannel, raw: &AdcRawMsg, cal_data: &CalibrationD
     let channel_cal_info = &cal_data.channel_infos[channel as usize];
 
     let raw_val = raw.value[channel_cal_info.index as usize]
-        .clamp(channel_cal_info.min, channel_cal_info.max);
+        .clamp(channel_cal_info.min, channel_cal_info.max) as i32;
 
-    let mut ret = (raw_val - channel_cal_info.min) as u32 * 10000
-        / (channel_cal_info.max - channel_cal_info.min) as u32;
+    let mut ret = (raw_val - channel_cal_info.min as i32) as u32 * 10000
+        / (channel_cal_info.max as i32 - channel_cal_info.min as i32) as u32;
 
     if channel_cal_info.rev {
         ret = 10000 - ret;

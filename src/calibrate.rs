@@ -171,8 +171,8 @@ impl CalSample {
 
     fn find_largest_change_channel(&self)->u8{
         let cmp_func = |a: &&AdcRawMsg,b: &&AdcRawMsg|{
-            let sum_a:i16 = a.value.iter().sum();
-            let sum_b:i16 = b.value.iter().sum();
+            let sum_a:i32 = a.value.iter().map(|a| *a as i32).sum();
+            let sum_b:i32 = b.value.iter().map(|a| *a as i32).sum();
             sum_a.cmp(&sum_b) 
         };
 
@@ -181,13 +181,16 @@ impl CalSample {
 
         let mut max_diff=0;
         let mut ret:u8=0;
+        thread_logln!("max:{:?}",max);
+        thread_logln!("min:{:?}",min);
         for (index,(a,b)) in max.value.iter().zip(min.value).enumerate(){
-            let sub = (a-b).abs();
+            let sub = (*a as i32 - b as i32).abs();
             if sub > max_diff{
                 max_diff = sub;
                 ret = index as u8;
             }
         }
+        thread_logln!("index:{}",ret);
         ret
     }
 
@@ -222,6 +225,7 @@ fn calibrate_main(_argc: u32, _argv: *const &str) {
             _ => cal.do_step()
         }
     }
+    _ = std::fs::remove_file(CALIBRATE_FILENAME);
     let mut file = std::fs::OpenOptions::new().read(false).write(true).create_new(true).open(CALIBRATE_FILENAME).unwrap();
     let str_write = toml::to_string(&cal.data).unwrap();
     file.write(str_write.as_bytes()).unwrap();
