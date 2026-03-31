@@ -19,6 +19,7 @@ crc = "3.0"
 crsf = "2.0.1"
 joydev = "0.3.1"
 morb = { git = "https://github.com/HumpbackLab/morb.git", rev = "b1acd2a2aef37e1c9481010a17b932712c5835d4" }
+ctor = "0.8.0"
 
 [dev-dependencies]
 rand = "0.8.4"

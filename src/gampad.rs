@@ -3,14 +3,7 @@ use std::{fs::File, io::Write};
 use crate::msgbus::mixer_out_subscriber;
 
 struct GamePad{
-    report:GamePadReport,
     fd:File
-}
-
-#[derive(Default)]
-struct GamePadReport{
-    button_status:u8,
-    channels_status:[i8;4]
 }
 
 impl GamePad{
@@ -18,7 +11,6 @@ impl GamePad{
         let file = std::fs::OpenOptions::new().read(false).write(true).create_new(false).open(device_name).unwrap();
 
         let gamepad = GamePad{
-            report:GamePadReport::default(),
             fd:file
         };
 

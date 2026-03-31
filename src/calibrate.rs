@@ -5,6 +5,7 @@ use rpos::thread_logln;
 use crate::{adc::AdcRawMsg, CALIBRATE_FILENAME};
 use crate::msgbus::{adc_raw_subscriber, TopicReader};
 
+#[allow(dead_code)]
 pub trait EnumIter
 where
     Self: Sized + 'static,
@@ -150,6 +151,7 @@ impl CalSample {
         a.value[channel_index as usize]      
     }
 
+    #[allow(dead_code)]
     fn get_average(&self) -> AdcRawMsg {
         let mut ret = self
             .list
@@ -204,6 +206,7 @@ impl CalSample {
         }
     }
 
+    #[allow(dead_code)]
     fn sample_by_counts(&mut self, count: u32) {
         while (self.list.len() as u32) < count {
             let data = self.rx.read();
