@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use clap::Parser;
 use crc::{Crc, CRC_8_DVB_S2};
-use crsf::{PacketAddress, PacketType, RawPacket, RcChannels};
-use rpos::{msg::get_new_rx_of_message, pthread_scheduler::SchedulePthread, thread_logln};
+use crsf::{PacketAddress, RawPacket};
+use rpos::{pthread_scheduler::SchedulePthread, thread_logln};
 
-use crate::{client_process_args, mixer::MixerOutMsg};
+use crate::{client_process_args, msgbus::mixer_out_subscriber};
 
 #[derive(Parser)]
 #[command(name="erls_tx", about = None, long_about = None)]
@@ -53,7 +53,7 @@ fn elrs_tx_main(argc: u32, argv: *const &str) {
     let dev_name = &args.dev_name;
     let serial = serialport::new(dev_name, args.baudrate);
     let mut dev = serial.timeout(Duration::from_millis(1000)).open().unwrap();
-    let mut rx = get_new_rx_of_message::<MixerOutMsg>("mixer_out").unwrap();
+    let mut rx = mixer_out_subscriber();
 
     let magic_cmd = gen_magic_packet();
     for _ in 0..10 {

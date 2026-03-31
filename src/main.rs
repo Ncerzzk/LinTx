@@ -9,6 +9,7 @@ mod elrs_tx;
 mod joy_dev;
 mod joysticks_test;
 mod gampad;
+mod msgbus;
 
 
 pub const CALIBRATE_FILENAME: &str = "joystick.toml";

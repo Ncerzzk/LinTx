@@ -1,11 +1,9 @@
 use std::{time::Duration, io::Write};
 
-use rpos::{
-    channel::Receiver,
-    thread_logln
-};
+use rpos::thread_logln;
 
 use crate::{adc::AdcRawMsg, CALIBRATE_FILENAME};
+use crate::msgbus::{adc_raw_subscriber, TopicReader};
 
 pub trait EnumIter
 where
@@ -50,14 +48,14 @@ enum CalibrateState {
 struct Calibration {
     state: CalibrateState,
     data:CalibrationData,
-    rx: Receiver<AdcRawMsg>,
+    rx: TopicReader<AdcRawMsg>,
 }
 
 impl Calibration {
     fn new() -> Self {
         Calibration {
             state: CalibrateState::Idle,
-            rx: rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap(),
+            rx: adc_raw_subscriber(),
             data: CalibrationData{
                 channel_infos: Vec::new(),
                 channel_indexs:Vec::new()
@@ -127,11 +125,11 @@ impl Calibration {
 
 struct CalSample{
     list: Vec<AdcRawMsg>,
-    rx: Receiver<AdcRawMsg>,
+    rx: TopicReader<AdcRawMsg>,
 }
 
 impl CalSample {
-    fn new(rx:Receiver<AdcRawMsg>) -> Self {
+    fn new(rx:TopicReader<AdcRawMsg>) -> Self {
         CalSample {
             list: Vec::new(),
             rx,
@@ -239,6 +237,7 @@ fn register() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::msgbus::adc_raw_publisher;
     use serde::Serialize;
     #[derive(Serialize)]
     struct SaveInfo{
@@ -260,8 +259,8 @@ mod tests {
     }
     #[test]
     fn test_calsample_average() {
-        let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-        let mut sample = CalSample::new(rx.clone());
+        let rx = adc_raw_subscriber();
+    let mut sample = CalSample::new(rx.clone());
         sample.list.push(AdcRawMsg { value: [100; 4] });
         sample.list.push(AdcRawMsg { value: [200; 4] });
 
@@ -270,11 +269,12 @@ mod tests {
         for i in average.value {
             assert_eq!(i, 150);
         }
+        
     }
 
     #[test]
     fn test_calsample_find_largest_changes_channel(){
-        let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
+        let rx = adc_raw_subscriber();
         let mut sample = CalSample::new(rx.clone());
         sample.list.push(AdcRawMsg { value: [101,99,103,102] });
         sample.list.push(AdcRawMsg { value: [295,290,301,299] });
@@ -284,8 +284,8 @@ mod tests {
 
     #[test]
     fn test_calsample_get_min_max(){
-        let mut rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-    let mut sample = CalSample::new(rx.clone());
+        let rx = adc_raw_subscriber();
+        let mut sample = CalSample::new(rx.clone());
         const CHANNEL_NUM: usize = JoystickChannel::ITER.len();
         sample.list.push(AdcRawMsg { value: [50;CHANNEL_NUM] });
         sample.list.push(AdcRawMsg { value: [100;CHANNEL_NUM] });
@@ -298,18 +298,17 @@ mod tests {
             assert_eq!(sample.get_min_of_channel(i as u8),50);
             assert_eq!(sample.get_max_of_channel(i as u8),500);
         }
-        
     }
 
     #[test]
     fn test_calibrate(){
         let mut cal = Calibration::new();
         std::thread::spawn(||{
-            let tx = rpos::msg::get_new_tx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-            
+            let tx = adc_raw_publisher();
+
             loop{
                 let msg = AdcRawMsg::default();
-                tx.send(msg);
+                tx.publish(msg);
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
         });

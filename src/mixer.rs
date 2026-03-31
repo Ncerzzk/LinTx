@@ -7,6 +7,7 @@ use crate::calibrate::{
     CalibrationData,
     JoystickChannel::{self, *},
 };
+use crate::msgbus::{adc_raw_subscriber, mixer_out_publisher};
 use crate::CALIBRATE_FILENAME;
 
 #[derive(Clone)]
@@ -34,8 +35,8 @@ fn cal_mixout(channel: JoystickChannel, raw: &AdcRawMsg, cal_data: &CalibrationD
 }
 
 fn mixer_main(_argc: u32, _argv: *const &str) {
-    let rx = rpos::msg::get_new_rx_of_message::<AdcRawMsg>("adc_raw").unwrap();
-    let tx = rpos::msg::get_new_tx_of_message::<MixerOutMsg>("mixer_out").unwrap();
+    let mut rx = adc_raw_subscriber();
+    let tx = mixer_out_publisher();
     let mut toml_str = String::new();
     if let Ok(mut file) = fs::File::open(CALIBRATE_FILENAME) {
         file.read_to_string(&mut toml_str).unwrap();
@@ -45,21 +46,20 @@ fn mixer_main(_argc: u32, _argv: *const &str) {
     }
 
     let cal_data = toml::from_str::<CalibrationData>(toml_str.as_str()).unwrap();
-
-    rx.register_callback("mixer_callback", move |x| {
+    loop {
+        let x = rx.read();
         let mixer_out = MixerOutMsg {
-            thrust: cal_mixout(Thrust, x, &cal_data),
-            direction: cal_mixout(Direction, x, &cal_data),
-            aileron: cal_mixout(Aileron, x, &cal_data),
-            elevator: cal_mixout(Elevator, x, &cal_data),
+            thrust: cal_mixout(Thrust, &x, &cal_data),
+            direction: cal_mixout(Direction, &x, &cal_data),
+            aileron: cal_mixout(Aileron, &x, &cal_data),
+            elevator: cal_mixout(Elevator, &x, &cal_data),
         };
-        tx.send(mixer_out);
-    });
+        tx.publish(mixer_out);
+    }
 }
 
 #[rpos::ctor::ctor]
 fn register() {
-    rpos::msg::add_message::<MixerOutMsg>("mixer_out");
     rpos::module::Module::register("mixer", mixer_main);
 }
 
@@ -68,7 +68,6 @@ mod tests {
     use crate::calibrate::ChannelInfo;
 
     use super::*;
-    use ads1x1x::ChannelId;
     use rand::prelude::*;
 
     #[test]
@@ -127,10 +126,7 @@ mod tests {
             adc_raw.value[3] = get_random_channel_value();
         }
 
-
         cal_data.channel_infos[0].rev = true;
         assert_eq!(cal_mixout(JoystickChannel::Thrust, &adc_raw, &cal_data), 10000 - ((500 - 200) as u32 *10000  / (1500 - 200) )as u16);
-
-
     }
 }

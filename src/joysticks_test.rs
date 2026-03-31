@@ -1,6 +1,6 @@
-use rpos::{thread_log, msg::get_new_rx_of_message};
+use rpos::thread_log;
 
-use crate::mixer::MixerOutMsg;
+use crate::{mixer::MixerOutMsg, msgbus::mixer_out_subscriber};
 
 fn channel_out(mixout:&MixerOutMsg){
     thread_log!("\x1b[2KThrust:{}\n",mixout.thrust);
@@ -11,7 +11,7 @@ fn channel_out(mixout:&MixerOutMsg){
     
 }
 fn joysticks_test_main(_argc: u32, _argv: *const &str) {
-    let mut rx = get_new_rx_of_message::<MixerOutMsg>("mixer_out").unwrap();
+    let mut rx = mixer_out_subscriber();
     loop{
         channel_out(&rx.read());
     }

@@ -7,6 +7,8 @@ use nb::block;
 
 use ads1x1x::{channel, Ads1x1x, SlaveAddr};
 
+use crate::msgbus::adc_raw_publisher;
+
 #[derive(Debug,Clone,Copy,Default)]
 pub struct AdcRawMsg{
     pub value:[i16;4]
@@ -19,7 +21,7 @@ fn adc_main(_argc: u32, _argv: *const &str) {
     adc.set_full_scale_range(ads1x1x::FullScaleRange::Within4_096V).unwrap();
     adc.set_data_rate(ads1x1x::DataRate12Bit::Sps3300).unwrap();
 
-    let adc_raw_tx = rpos::msg::get_new_tx_of_message::<AdcRawMsg>("adc_raw").unwrap();
+    let adc_raw_tx = adc_raw_publisher();
 
     thread_logln!("adc thread started!");
 
@@ -31,7 +33,7 @@ fn adc_main(_argc: u32, _argv: *const &str) {
             block!(adc.read(channel::SingleA3)).unwrap()
         ];
 
-        adc_raw_tx.send(AdcRawMsg{ value });
+        adc_raw_tx.publish(AdcRawMsg{ value });
     }
     // get I2C device back
     #[warn(unreachable_code)]
@@ -40,6 +42,5 @@ fn adc_main(_argc: u32, _argv: *const &str) {
 
 #[rpos::ctor::ctor]
 fn register() {
-    rpos::msg::add_message::<AdcRawMsg>("adc_raw");
     rpos::module::Module::register("adc", adc_main);
 }
